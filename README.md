@@ -72,6 +72,9 @@ always prints its evidence so you can judge for yourself.
 Exit codes: 0 means GO, 1 means TAKEN, 2 means CAUTION, 3 means something
 broke (bad target or flag, no `gh`, API error).
 
+A pull request number is not an issue target: it returns an error rather
+than a contribution verdict (CLI exit code 3; an MCP error payload).
+
 ## Examples
 
 An issue with a PR already fixing it:

@@ -53,6 +53,55 @@ def test_non_dict_issue_response_raises(monkeypatch):
         checks.check_issue("octo", "repo", 1)
 
 
+@pytest.mark.parametrize(
+    "marker", [None, {}, {"url": "https://api.github.com/repos/octo/repo/pulls/1"}]
+)
+@pytest.mark.parametrize("source", ["get", "complete_payload", "incomplete_payload"])
+def test_pull_request_is_not_an_issue(monkeypatch, marker, source):
+    response = {
+        "state": "open",
+        "title": "a pull request",
+        "labels": [],
+        "assignees": [],
+        "comments": 0,
+        "user": {"login": "someone"},
+        "html_url": "https://github.com/octo/repo/pull/1",
+        "created_at": "2026-01-01T00:00:00Z",
+        "pull_request": marker,
+    }
+    calls = []
+
+    def fake(endpoint, params=None):
+        calls.append(endpoint)
+        return response
+
+    monkeypatch.setattr(checks, "gh_api", fake)
+    payload = None if source == "get" else response
+    if source == "incomplete_payload":
+        payload = {"pull_request": marker}
+    with pytest.raises(checks.TakenError, match="octo/repo#1 is a pull request, not an issue"):
+        checks.check_issue("octo", "repo", 1, payload=payload)
+    assert calls == (["repos/octo/repo/issues/1"] if source == "get" else [])
+
+
+def test_pull_request_target_is_exit_3_without_a_verdict(monkeypatch, capsys):
+    calls = []
+
+    def fake(endpoint, params=None):
+        calls.append(endpoint)
+        assert endpoint == "repos/octo/repo/issues/1"
+        return {"pull_request": {}}
+
+    monkeypatch.setattr(checks, "gh_api", fake)
+    monkeypatch.setattr(checks, "_github_identity", lambda: None)
+    assert main(["octo/repo#1", "--rest"]) == 3
+    captured = capsys.readouterr()
+    assert "is a pull request, not an issue" in captured.err
+    assert "Traceback" not in captured.err
+    assert "verdict:" not in captured.out
+    assert calls == ["repos/octo/repo/issues/1"]
+
+
 @pytest.mark.parametrize("field", ["labels", "assignees"])
 def test_null_issue_collection_is_empty(monkeypatch, field):
     response = {

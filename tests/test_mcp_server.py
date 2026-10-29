@@ -186,6 +186,18 @@ def test_check_issue_returns_error_dict(monkeypatch):
     assert payload == {"target": "octo/repo#1", "error": "network down", "error_code": "unknown"}
 
 
+def test_check_issue_rejects_pull_request_number(monkeypatch):
+    def fake(endpoint, params=None):
+        assert endpoint == "repos/octo/repo/issues/1"
+        return {"pull_request": {}}
+
+    monkeypatch.setattr(checks, "gh_api", fake)
+    payload = check_issue("octo", "repo", 1)
+    assert payload["target"] == "octo/repo#1"
+    assert payload["error"] == "octo/repo#1 is a pull request, not an issue"
+    assert "verdict" not in payload
+
+
 def test_check_issue_carries_friendly_and_welcoming(monkeypatch):
     monkeypatch.setattr(
         checks, "gh_api", make_fake({1: "go"}, labels_map={1: ["good first issue", "bug"]})

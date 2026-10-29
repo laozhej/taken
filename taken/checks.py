@@ -1384,14 +1384,19 @@ def check_issue(owner, repo, number, payload=None):
 
     When `payload` is a pre-fetched search/issues item carrying every field
     above, the redundant GET is skipped. An incomplete payload falls back
-    to the GET, so the plain path behaves exactly as before.
+    to the GET, so the plain path behaves exactly as before. Pull requests
+    returned by the issues endpoint are rejected before gathering evidence.
     """
     if payload is not None:
+        if isinstance(payload, dict) and "pull_request" in payload:
+            raise TakenError(f"{owner}/{repo}#{number} is a pull request, not an issue")
         facts = _issue_facts_from_payload(payload, number)
         if facts is not None:
             return facts
     endpoint = f"repos/{owner}/{repo}/issues/{number}"
     data = _require_dict(gh_api(endpoint), endpoint)
+    if "pull_request" in data:
+        raise TakenError(f"{owner}/{repo}#{number} is a pull request, not an issue")
     return {
         "number": number,
         "state": data.get("state"),

@@ -152,15 +152,34 @@ def test_fetch_mode_rest_escape_hatch(monkeypatch):
         assert graphql.fetch_mode(_args(graphql=True)) == "rest"
 
 
-def test_fetch_mode_persistent_wins(monkeypatch):
+def test_fetch_mode_persistent_beats_graphql(monkeypatch):
     _logged_in(monkeypatch)
     assert graphql.fetch_mode(_args(persistent_session=True)) == "persistent"
     with mock.patch.dict(os.environ, {"TAKEN_PERSISTENT_SESSION": "1"}):
         assert graphql.fetch_mode(_args(graphql=True)) == "persistent"
-    # Persistent still wins over the rest escape hatch: it is the most
-    # explicit opt-in.
-    with mock.patch.dict(os.environ, {"TAKEN_PERSISTENT_SESSION": "1", "TAKEN_REST": "1"}):
-        assert graphql.fetch_mode(_args()) == "persistent"
+
+
+@pytest.mark.parametrize("rest_source", ["flag", "env"])
+@pytest.mark.parametrize("persistent_source", ["flag", "env", "both"])
+def test_fetch_mode_rest_overrides_persistent(monkeypatch, rest_source, persistent_source):
+    _logged_in(monkeypatch)
+    monkeypatch.delenv("TAKEN_REST", raising=False)
+    monkeypatch.delenv("TAKEN_PERSISTENT_SESSION", raising=False)
+    monkeypatch.setenv("TAKEN_GRAPHQL_TRANSPORT", "httpx")
+    monkeypatch.setenv("TAKEN_GRAPHQL", "1")
+    args = _args(graphql=True)
+    if rest_source == "flag":
+        args.rest = True
+    else:
+        monkeypatch.setenv("TAKEN_REST", "1")
+    if persistent_source in ("flag", "both"):
+        args.persistent_session = True
+    if persistent_source in ("env", "both"):
+        monkeypatch.setenv("TAKEN_PERSISTENT_SESSION", "1")
+
+    assert graphql.fetch_mode(args) == "rest"
+    if rest_source == "env":
+        assert graphql.fetch_mode(None) == "rest"
 
 
 # --- error handling --------------------------------------------------------

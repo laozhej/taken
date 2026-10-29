@@ -106,7 +106,9 @@ A clean issue, with your own volunteering comment filtered out:
 - `--json`: print the full findings as JSON instead of the human summary
 - `--me LOGIN`: ignore your own comments when scanning for claimants
 - `--no-cache`: bypass the one-hour API response cache
-- `--rest`: force the REST fetch path (the default is GraphQL for logged-in users)
+- `--rest`: force the REST fetch path, overriding all GraphQL options,
+  including `--persistent-session` and `TAKEN_PERSISTENT_SESSION=1`.
+  `TAKEN_REST=1` has the same precedence.
 - `--health`: maintainer report for one repo instead of a contributor verdict
 
 `taken --help` lists everything.
